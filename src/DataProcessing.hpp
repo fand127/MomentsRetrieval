@@ -1,3 +1,6 @@
+#ifndef _DATA_PROCESSING_
+#define _DATA_PROCESSING_
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -18,6 +21,7 @@
 using namespace rapidjson;
 using namespace std;
 
+#include "Utils.hpp"
 
 
 class DataProcessing
@@ -104,52 +108,6 @@ public:
 };
 
 template <class dType>
-class LangProcessing: public DataProcessing
-{
-	int word_size         = 256;
-    int sentence_length   = 50;
-	int loc_size          = 21;
-	int glove_length      = 300;
-	LanguageFeature<dType> Data;
-protected:
-	static int isNotAlphaNum(char c) { return !isalnum(c); }
-	string CommonRepresentation(string str) {
-		transform(str.begin(), str.end(), str.begin(), ::tolower);
-		replace_if(str.begin(), str.end(), isNotAlphaNum, ' ');
-		return str;
-	};
-public:
-	LangProcessing() {
-		batch_size = 1;
-	};
-	virtual ~LangProcessing() { Data.deinit(); };
-
-	enum class LangType {
-		zero_lanuage = 0,
-		recurrent_embedding
-	};
-	unordered_map<string, vector<double>> vocab_vec;
-	unordered_map<string, vector<double>> glove_vec;
-	vector<vector<string>> description_words_vec;	
-
-	vector<string> sentencetoword(string);
-	void preProcessLanguage();
-	//Load model complete vocabulary
-	void LoadVocabfile(string vocab_file = "../../data/vocab_glove_complete.txt");
-	void LoadGloveEmbedding(string glove_file = "../../data/glove.6B.300d_test.txt");
-	LanguageFeature<dType> ExtractNextLanuguageData();
-	
-	template <class K>
-	void LoadData(vector<K>,
-		string vocab_file = "../../data/vocab_glove_complete.txt",
-		string embedding_file = "../../data/glove.6B.300d_test.txt");
-
-	void LoadDataFromFile(string datafile = "../../data/val_data.json",
-		string vocab_file = "../../data/vocab_glove_complete.txt",
-		string embedding_file = "../../data/glove.6B.300d_test.txt");
-};
-
-template <class dType>
 class VisualFeature {
 public:
 	uint32_t mbatch_size;
@@ -157,7 +115,9 @@ public:
 	uint32_t mtotal_seg;
 public:
 	dType* pData_feature;
+	uint32_t feature_size;
 	dType* pData_loc;
+	uint32_t loc_size;
 	dType* pTemp_feature;
 	vector<string> video_id;
 	vector<pair<uint32_t, uint32_t>> possible_segment;
@@ -192,24 +152,4 @@ public:
 	};
 };
 
-template <class dType>
-class VisualProcessing:public DataProcessing {
-	unordered_map<string, vector<dType>> visual_feature;
-public:
-	VisualProcessing() { batch_size = 1; };
-	virtual ~VisualProcessing() { closeh5file(file);};
-protected: 
-	H5::H5File file;
-	VisualFeature<dType> feature;
-	unordered_set<string> visual_data_vec;
-public:
-	void setCombination(VisualFeature<dType> &);
-	H5::H5File inith5file(string filename);
-	void closeh5file(H5::H5File file) { file.close(); };
-	void preProcessVisual();
-	void ProcessVisual();
-	//void ProcessVisual();
-	void LoadDataFromFile(string datafile = "../../data/val_data.json", string featurefile = "../../data/average_fc7.h5");
-		//,string flowfile = "../../data/average_global_flow.h5");
-	VisualFeature<dType> ExtractNextVisualFeature();
-};
+#endif

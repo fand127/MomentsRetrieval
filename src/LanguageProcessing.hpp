@@ -1,5 +1,52 @@
+#ifndef _LANGUAGE_PROCESS_
+#define _LANGUAGE_PROCESS_
 #include "DataProcessing.hpp"
-#include "Utils.hpp"
+
+template <class dType>
+class LangProcessing: public DataProcessing
+{
+	int word_size         = 256;
+    int sentence_length   = 50;
+	int loc_size          = 21;
+	int glove_length      = 300;
+	LanguageFeature<dType> Data;
+protected:
+	static int isNotAlphaNum(char c) { return !isalnum(c); }
+	string CommonRepresentation(string str) {
+		transform(str.begin(), str.end(), str.begin(), ::tolower);
+		replace_if(str.begin(), str.end(), isNotAlphaNum, ' ');
+		return str;
+	};
+public:
+	LangProcessing() {
+		batch_size = 1;
+	};
+	virtual ~LangProcessing() { Data.deinit(); };
+
+	enum class LangType {
+		zero_lanuage = 0,
+		recurrent_embedding
+	};
+	unordered_map<string, vector<double>> vocab_vec;
+	unordered_map<string, vector<double>> glove_vec;
+	vector<vector<string>> description_words_vec;	
+
+	vector<string> sentencetoword(string);
+	void preProcessLanguage();
+	//Load model complete vocabulary
+	void LoadVocabfile(string vocab_file = "../../data/vocab_glove_complete.txt");
+	void LoadGloveEmbedding(string glove_file = "../../data/glove.6B.300d_test.txt");
+	LanguageFeature<dType> ExtractNextLanuguageData();
+	
+	template <class K>
+	void LoadData(vector<K>,
+		string vocab_file = "../../data/vocab_glove_complete.txt",
+		string embedding_file = "../../data/glove.6B.300d_test.txt");
+
+	void LoadDataFromFile(string datafile = "../../data/val_data.json",
+		string vocab_file = "../../data/vocab_glove_complete.txt",
+		string embedding_file = "../../data/glove.6B.300d_test.txt");
+};
 
 template <class dType>
 vector<string> LangProcessing<dType>::sentencetoword(string sentence)
@@ -10,8 +57,8 @@ vector<string> LangProcessing<dType>::sentencetoword(string sentence)
 	char *data = new char[word_size];
 	sentence = CommonRepresentation(sentence);
 	istringstream linestream(sentence);
-	
-	while(linestream.getline(data, word_size, ' '))
+
+	while (linestream.getline(data, word_size, ' '))
 	{
 		word.assign(data);
 		words.push_back(word);
@@ -53,7 +100,7 @@ void LangProcessing<dType>::LoadVocabfile(std::string vocab_file)
 
 	while (getline(inFile, word))
 	{
-		if(word != "<unk>")
+		if (word != "<unk>")
 			vocab_vec.insert(make_pair(word, vec_holder));
 	}
 	inFile.close();
@@ -65,17 +112,17 @@ void LangProcessing<dType>::LoadGloveEmbedding(string glove_file)
 {
 	_FUNCTION_E_;
 	ifstream inFile;
-	string sentence , word;
-	
-	
+	string sentence, word;
+
+
 	const int glove_size = 300;
 	vector<double> vec;
 	float val;
 	char *data = new char[word_size];
 	inFile.open(glove_file.c_str());
 	if (!inFile) {
-		cerr << "Unable to open file " << glove_file ;
-		exit(1);   
+		cerr << "Unable to open file " << glove_file;
+		exit(1);
 	}
 	istringstream linestream;
 
@@ -86,7 +133,7 @@ void LangProcessing<dType>::LoadGloveEmbedding(string glove_file)
 
 	while (getline(inFile, sentence))
 	{
-	
+
 		linestream.clear();
 		linestream.str(sentence);
 		linestream.getline(data, word_size, ' ');
@@ -103,7 +150,7 @@ void LangProcessing<dType>::LoadGloveEmbedding(string glove_file)
 				vec.push_back((double)atof(data));
 			}
 			val->second = vec;
-		}		
+		}
 	}
 	inFile.close();
 	delete data;
@@ -122,7 +169,7 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 
 	Data.deinit();
 	Data.init(glove_length, loc_size, sentence_length, batch_size);
-	
+
 	//current word index with float data memory
 	uint32_t word_data_index = 0;
 	//current data index of total description sentence data
@@ -146,13 +193,13 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 		if (sendata_index == description_words_vec.size())
 			break;
 		//Get sentence vector string		
-		uint32_t word_con_index_start  = loc_size * sentence_length * batch_sendata_index;
+		uint32_t word_con_index_start = loc_size * sentence_length * batch_sendata_index;
 		uint32_t word_data_index_start = glove_length * word_con_index_start;
 		vector<string> &description_words = description_words_vec.at(sendata_index);
 		for (uint32_t word_indx = 0; word_indx < description_words.size(); ++word_indx)
 		{
 			//Actual Vector placement is end aligned 
-			uint32_t word_placement_indx = sentence_length - description_words.size() + word_indx;			
+			uint32_t word_placement_indx = sentence_length - description_words.size() + word_indx;
 			//word cont data start index 
 			word_cont_index = word_con_index_start + word_placement_indx * loc_size;
 			//word float data start index 
@@ -160,10 +207,10 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 			//Find each word embedding vector in the sentence
 			auto val = vocab_vec.find(description_words.at(word_indx));
 			if (val != vocab_vec.end())
-			{								
+			{
 				//If word embedding vector is found, locate data							
-				
-				DPRINT("\n %s ",val->first.c_str());
+
+				DPRINT("\n %s ", val->first.c_str());
 				for (uint32_t vec_index = 0; vec_index < glove_length; ++vec_index)
 				{
 					loc_index = 0;
@@ -200,9 +247,11 @@ void LangProcessing<dType>::LoadDataFromFile(string datafile,
 	string embedding_file)
 {
 	_FUNCTION_E_;
-    LoadVocabfile(vocab_file);
+	LoadVocabfile(vocab_file);
 	LoadGloveEmbedding(embedding_file);
 	readjsonfile(datafile);
 	preProcessLanguage();
 	_FUNCTION_X_;
 }
+
+#endif
