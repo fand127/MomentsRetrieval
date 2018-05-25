@@ -43,4 +43,9 @@ namespace caffe
 	extern INSTANTIATE_CLASS(ReductionLayer);
 }
 
+
+using caffe::Blob;
+using caffe::Net;
+using caffe::Caffe;
+
 #endif

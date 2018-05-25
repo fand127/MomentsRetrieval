@@ -44,10 +44,17 @@ class LanguageFeature{
 	uint32_t mglove_length;
 	uint32_t mloc_size;
 	uint32_t msentence_length;
-	uint32_t mbatch_size;
+	uint32_t mbatch_size;	
 	uint32_t vec_total_size;
 	uint32_t con_total_size;
+	
 public:
+	bool is_new;
+	uint32_t mloaded;
+	uint32_t mtotal_seg;
+	uint32_t mstart_seg;
+	uint32_t mend_seg;
+	vector<string> video_id;
 	dType* pData_vec;
 	dType* pData_cont;
 public:
@@ -68,7 +75,7 @@ public:
 		uint32_t sent_length,
 		uint32_t batch_size) {
 		mglove_length    = glove_length;
-		mloc_size        = loc_size;
+		mloc_size        = loc_size; //default 21 
 		msentence_length = sent_length;
 		mbatch_size      = batch_size;
 		con_total_size   = batch_size * sent_length * loc_size;
@@ -110,6 +117,8 @@ public:
 template <class dType>
 class VisualFeature {
 public:
+	bool is_new;
+	uint32_t mloaded;
 	uint32_t mbatch_size;
 	uint32_t mdims[3];
 	uint32_t mtotal_seg;

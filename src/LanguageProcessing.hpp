@@ -29,14 +29,15 @@ public:
 	};
 	unordered_map<string, vector<double>> vocab_vec;
 	unordered_map<string, vector<double>> glove_vec;
-	vector<vector<string>> description_words_vec;	
-
+	vector<vector<string>> description_words_vec;
+	vector<string> video_name_vec;
+	vector<pair<uint32_t, uint32_t>> seg_vec;
 	vector<string> sentencetoword(string);
 	void preProcessLanguage();
 	//Load model complete vocabulary
 	void LoadVocabfile(string vocab_file = "../../data/vocab_glove_complete.txt");
 	void LoadGloveEmbedding(string glove_file = "../../data/glove.6B.300d_test.txt");
-	LanguageFeature<dType> ExtractNextLanuguageData();
+	LanguageFeature<dType> ExtractNextLanuguageData(bool random = false);
 	
 	template <class K>
 	void LoadData(vector<K>,
@@ -46,6 +47,9 @@ public:
 	void LoadDataFromFile(string datafile = "../../data/val_data.json",
 		string vocab_file = "../../data/vocab_glove_complete.txt",
 		string embedding_file = "../../data/glove.6B.300d_test.txt");
+
+	//correct moment times
+	void GetTimes();
 };
 
 template <class dType>
@@ -71,13 +75,18 @@ template <class dType>
 void LangProcessing<dType>::preProcessLanguage()
 {
 	_FUNCTION_E_;
+	//Careful, Value assignment is one time move 
 	for (int i = 0; i < doc.Size(); ++i)
 	{
 		if (doc[i].IsObject())
 		{
+			//in the order of data
 			description_words_vec.push_back(sentencetoword(doc[i]["description"].GetString()));
+			video_name_vec.push_back(doc[i]["video"].GetString());
 		}
 	}
+
+	this->Data.mtotal_seg = doc[0]["num_segments"].GetInt();
 	_FUNCTION_X_;
 }
 
@@ -113,7 +122,6 @@ void LangProcessing<dType>::LoadGloveEmbedding(string glove_file)
 	_FUNCTION_E_;
 	ifstream inFile;
 	string sentence, word;
-
 
 	const int glove_size = 300;
 	vector<double> vec;
@@ -162,13 +170,15 @@ void LangProcessing<dType>::LoadGloveEmbedding(string glove_file)
 }
 
 template <class dType>
-LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
+LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData(bool random)
 {
 	_FUNCTION_E_;
 	static int batch_count = 0;
 
 	Data.deinit();
 	Data.init(glove_length, loc_size, sentence_length, batch_size);
+	Data.is_new  = false;
+	Data.mloaded = 0;
 
 	//current word index with float data memory
 	uint32_t word_data_index = 0;
@@ -186,6 +196,11 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 	uint32_t loc_index = 0;
 	//Cont_data index
 	uint32_t word_cont_index = 0;
+	//Clear Video name
+	Data.video_id.clear();
+
+	if (random)
+		batch_count = rand() % description_words_vec.size();
 
 	for (batch_sendata_index = 0, sendata_index = index_count_begin; batch_sendata_index < batch_size; ++batch_sendata_index, ++sendata_index)
 	{
@@ -208,8 +223,7 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 			auto val = vocab_vec.find(description_words.at(word_indx));
 			if (val != vocab_vec.end())
 			{
-				//If word embedding vector is found, locate data							
-
+				//If word embedding vector is found, locate data
 				DPRINT("\n %s ", val->first.c_str());
 				for (uint32_t vec_index = 0; vec_index < glove_length; ++vec_index)
 				{
@@ -227,16 +241,23 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData()
 				{
 					Data.pData_cont[word_cont_index + loc_index] = 1;
 					loc_index++;
-				}
+				}				
 			}
 		}
+		Data.mstart_seg = seg_vec.at(sendata_index).first;
+		Data.mend_seg   = seg_vec.at(sendata_index).second;
+		Data.video_id.push_back(video_name_vec.at(sendata_index));
+		Data.mloaded++;
 	}
 
 	//Last sentence is reached
 	if (description_words_vec.size() == sendata_index)
 		batch_count = 0;
 	else
+	{
 		batch_count++;
+		Data.is_new = true;
+	}
 	_FUNCTION_X_;
 	return Data;
 }
@@ -251,7 +272,37 @@ void LangProcessing<dType>::LoadDataFromFile(string datafile,
 	LoadGloveEmbedding(embedding_file);
 	readjsonfile(datafile);
 	preProcessLanguage();
+	GetTimes();
 	_FUNCTION_X_;
+}
+
+template <class dType>
+void LangProcessing<dType>::GetTimes()
+{
+	
+	for (int i = 0; i < doc.Size(); ++i)
+	{
+		if (doc[i].IsObject())
+		{		
+			uint32_t seg_count = 0;
+			float seg_start = 0, seg_end = 0;
+			Value timearray = doc[i]["times"].GetArray();
+			for (uint32_t j = 0; j< timearray.Size(); ++j)
+			{
+				const Value& val = timearray[j];		
+				seg_start += val[0].GetInt();
+				seg_end   += val[1].GetInt();
+				seg_count++;
+			}
+			if(seg_count != 0)
+			{
+				seg_start /= seg_count;
+				seg_end /= seg_count;
+			}
+		
+			seg_vec.push_back(make_pair(uint32_t(seg_start + 0.5f), uint32_t(seg_end + 0.5f)));
+		}
+	}
 }
 
 #endif

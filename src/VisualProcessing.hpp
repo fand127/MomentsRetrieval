@@ -11,7 +11,8 @@ public:
 protected:
 	H5::H5File file;
 	VisualFeature<dType> feature;
-	unordered_set<string> visual_data_vec;
+	unordered_set<string> visual_feature_name_vec;
+	vector<string> visual_data_vec;
 public:
 	void setCombination(VisualFeature<dType> &);
 	H5::H5File inith5file(string filename);
@@ -62,6 +63,12 @@ H5::H5File VisualProcessing<dType>::inith5file(string filename)
 	hsize_t dims_out[2];
 	dataspace.getSimpleExtentDims(dims_out, NULL);
 	feature.init(batch_size, 1, dims_out[0], dims_out[1]);
+
+	uint32_t file_size = file.getNumObjs();
+	for (uint32_t i = 0; i < file_size; ++i)
+	{
+		visual_feature_name_vec.insert(file.getObjnameByIdx(i));
+	}
 	return file;
 }
 
@@ -73,7 +80,7 @@ void VisualProcessing<dType>::preProcessVisual()
 	{
 		if (doc[i].IsObject())
 		{
-			visual_data_vec.insert((doc[i]["video"].GetString()));
+			visual_data_vec.push_back((doc[i]["video"].GetString()));
 		}
 	}
 	_FUNCTION_X_;
@@ -137,7 +144,7 @@ void VisualProcessing<dType>::ProcessVisual()
 			for (uint32_t data_index = 0; data_index < feature.mdims[2]; ++data_index)
 				feature.pData_feature[feature_data_base_ + data_index] = feature.pData_feature[data_index];
 		}
-		feature.pData_loc[index * 2] = (dType)start / feature.mtotal_seg;
+		feature.pData_loc[index * 2]     = (dType)start / feature.mtotal_seg;
 		feature.pData_loc[index * 2 + 1] = (dType)end / feature.mtotal_seg;
 	}
 
@@ -158,26 +165,20 @@ template <class dType>
 VisualFeature<dType> VisualProcessing<dType>::ExtractNextVisualFeature()
 {
 	_FUNCTION_E_;
-	static int batch_count = 0;
+	static int batch_data_count = 0;
 	string dataset_name;
 	H5::DataSet dataset;
 	uint32_t batch_data_index;
 	uint32_t feature_indx_offset;
 	feature.video_id.clear();
+	feature.is_new  = false;
+	feature.mloaded = 0;
 
-	for (batch_data_index = batch_count * batch_size, feature_indx_offset = 0;
-		(feature_indx_offset < batch_size) && (batch_data_index < file.getNumObjs()); )
+	for (batch_data_index = batch_data_count, feature_indx_offset = 0; (feature_indx_offset < batch_size) &&
+		(batch_data_index < visual_data_vec.size()); )
 	{
-		dataset_name = file.getObjnameByIdx(batch_data_index);
-		//TEST
-/*
-		while (dataset_name != "35034348999@N01_6060447507_dc1a90b8ef.mov")
-		{
-			batch_data_index++;
-			dataset_name = file.getObjnameByIdx(batch_data_index);
-		}
-*/
-		if (visual_data_vec.find(dataset_name) != visual_data_vec.end())
+		dataset_name = visual_data_vec.at(batch_data_index);
+		if (visual_feature_name_vec.find(dataset_name) != visual_feature_name_vec.end())
 		{
 			uint32_t data_loc_offset = feature_indx_offset * feature.mdims[0] * feature.mdims[1] * feature.mdims[2];
 			dataset = file.openDataSet(dataset_name.c_str());
@@ -187,14 +188,18 @@ VisualFeature<dType> VisualProcessing<dType>::ExtractNextVisualFeature()
 				dataset.read(feature.pTemp_feature + data_loc_offset, H5::PredType::NATIVE_FLOAT);
 			feature.video_id.push_back(dataset_name);
 			++feature_indx_offset;
+			feature.mloaded++;
 		}
 		++batch_data_index;
 	}
-	if (batch_data_index == file.getNumObjs())
-		batch_count = 0;
-	else
-		batch_count++;
 
+	if (batch_data_index == visual_data_vec.size())
+		batch_data_count = 0;
+	else
+	{
+		feature.is_new   = true;
+		batch_data_count = batch_data_index;
+	}
 	ProcessVisual();
 	_FUNCTION_X_;
 	return feature;
