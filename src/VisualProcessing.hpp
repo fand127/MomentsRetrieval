@@ -190,6 +190,10 @@ VisualFeature<dType> VisualProcessing<dType>::ExtractNextVisualFeature()
 			++feature_indx_offset;
 			feature.mloaded++;
 		}
+		else
+		{
+			cout << "Dataset not found " << dataset_name << endl;			
+		}
 		++batch_data_index;
 	}
 
