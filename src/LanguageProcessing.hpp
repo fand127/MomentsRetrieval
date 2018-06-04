@@ -257,7 +257,7 @@ LanguageFeature<dType> LangProcessing<dType>::ExtractNextLanuguageData(bool rand
 	{
 		batch_count++;
 		Data.is_new = true;
-	}
+	}	
 	_FUNCTION_X_;
 	return Data;
 }

@@ -21,7 +21,6 @@ public:
 	void ProcessVisual();
 	//void ProcessVisual();
 	void LoadDataFromFile(string datafile = "../../data/val_data.json", string featurefile = "../../data/average_fc7.h5");
-	//,string flowfile = "../../data/average_global_flow.h5");
 	VisualFeature<dType> ExtractNextVisualFeature();
 };
 
