@@ -2,6 +2,54 @@
 #define _VISUAL_PROCESS_
 #include "DataProcessing.hpp"
 
+
+template <class dType>
+class VisualFeature {
+public:
+	bool is_new;
+	uint32_t mloaded;
+	uint32_t mbatch_size;
+	uint32_t mdims[3];
+	uint32_t mtotal_seg;
+public:
+	dType* pData_feature;
+	uint32_t feature_size;
+	dType* pData_loc;
+	uint32_t loc_size;
+	dType* pTemp_feature;
+	vector<string> video_id;
+	vector<pair<uint32_t, uint32_t>> possible_segment;
+public:
+	VisualFeature() { init(); };
+	~VisualFeature() {};
+public:
+	void init() {
+		pData_feature = NULL;
+		pData_loc = NULL;
+		pTemp_feature = NULL;
+		mbatch_size = 0;
+		memset(mdims, 0, sizeof(uint32_t) * 3);
+	};
+	void init(uint32_t batch_size, uint32_t channels,
+		uint32_t height, uint32_t width)
+	{
+		mbatch_size = batch_size;
+		mdims[0] = channels;
+		mdims[1] = height;
+		mdims[2] = width;
+		mtotal_seg = height;
+		video_id.clear();
+		pTemp_feature = new dType[batch_size * channels * height * width];
+		memset(pTemp_feature, 0, sizeof(dType) * batch_size * channels* height * width);
+	}
+	void deinit() {
+		video_id.clear();
+		if (pData_feature) { delete pData_feature; pData_feature = NULL; }
+		if (pData_loc) { delete pData_loc; pData_loc = NULL; }
+		if (pTemp_feature) { delete pTemp_feature; pTemp_feature = NULL; }
+	};
+};
+
 template <class dType>
 class VisualProcessing :public DataProcessing {
 	unordered_map<string, vector<dType>> visual_feature;
@@ -20,7 +68,7 @@ public:
 	void preProcessVisual();
 	void ProcessVisual();
 	//void ProcessVisual();
-	void LoadDataFromFile(string datafile = "../../data/val_data.json", string featurefile = "../../data/average_fc7.h5");
+	void LoadDataFromFile(string datafile = "../../data/didemo/val_data.json", string featurefile = "../../data/didemo/average_fc7.h5");
 	VisualFeature<dType> ExtractNextVisualFeature();
 };
 

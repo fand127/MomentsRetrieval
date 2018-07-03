@@ -1,38 +1,30 @@
 # CMakeLists files in this project can
 include_directories( ${CMAKE_CURRENT_SOURCE_DIR} )
 
-## Find all source files to be compiled into object files
-file(GLOB SRC_FILES *.cpp)
-file(GLOB INC_FILES *.hpp *.h)
+add_subdirectory(Common)
 
-set(DEPENDENCY_LINKER_RELEASE_LIBS "")
-set(DEPENDENCY_LINKER_DEBUG_LIBS "")
-set(DEPENDENCY_INCLUDE_DIRS "")
+set(ENABLE_DIDEMO ON CACHE INTERNAL "")
+set(ENABLE_SEEDARK ON CACHE INTERNAL "")
+set(ENABLE_VIDEOSEARCH ON CACHE INTERNAL "")
+
+add_subdirectory(UI)
+set(COMMON_SRC_FILES ${COMMON_SRC_FILES} ${UI_SRC_FILES})
+set(COMMON_INC_FILES ${COMMON_INC_FILES} ${UI_INC_FILES})
 
 if(WIN32)
-	include("windows.cmake")
-else()
-	find_package(HDF5 COMPONENTS C CXX HL REQUIRED)
-	list(APPEND DEPENDENCY_INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
-	list(APPEND DEPENDENCY_LINKER_DEBUG_LIBS ${HDF5_LIBRARIES} ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES})
-
-
-	find_package(Caffe)
-	include_directories (${Caffe_DIR}/include)
-	include_directories(${Caffe_INCLUDE_DIRS})
-	add_definitions(${Caffe_DEFINITIONS})
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MTd")
 endif(WIN32)
-include_directories (${DEPENDENCY_INCLUDE_DIRS})
 
-############################################
-set(RAPIDJSON_INC ${PROJECT_SOURCE_DIR}/thirdparty/rapidjson)
-include_directories (${RAPIDJSON_INC})
-set(SOURCE ${SRC_FILES} ${INC_FILES})
+if(ENABLE_DIDEMO) 
+	add_subdirectory(caffeinc)
+	add_subdirectory(didemo)
+endif (ENABLE_DIDEMO)
 
-##Excutable
-add_executable(lib_didemo ${SOURCE})
+if(ENABLE_SEEDARK)
+	add_subdirectory(seedark)
+endif (ENABLE_SEEDARK)
 
-target_link_libraries(lib_didemo debug ${Caffe_LIBRARIES} ${DEPENDENCY_LINKER_DEBUG_LIBS})	
-target_link_libraries(lib_didemo optimized ${Caffe_LIBRARIES} ${DEPENDENCY_LINKER_RELEASE_LIBS})
-
-
+if(ENABLE_VIDEOSEARCH)
+	add_subdirectory(videosearch)
+endif(ENABLE_VIDEOSEARCH)
